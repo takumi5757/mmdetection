@@ -95,6 +95,157 @@ model = dict(
     ),
 )
 
+# dataset settings
+data_root = "/workspace"
+dataset_type = "CocoDataset"
+classes = ("cots",)
+
+img_norm_cfg = dict(
+    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True
+)
+train_pipeline = [
+    dict(type="LoadImageFromFile", to_float32=True),
+    dict(type="LoadAnnotations", with_bbox=True),
+    dict(
+        type="AutoAugment",
+        policies=[
+            [
+                dict(
+                    type="Resize",
+                    img_scale=[
+                        (480, 1333),
+                        (512, 1333),
+                        (544, 1333),
+                        (576, 1333),
+                        (608, 1333),
+                        (640, 1333),
+                        (672, 1333),
+                        (704, 1333),
+                        (736, 1333),
+                        (768, 1333),
+                        (800, 1333),
+                    ],
+                    multiscale_mode="value",
+                    keep_ratio=True,
+                )
+            ],
+            [
+                dict(
+                    type="Resize",
+                    img_scale=[(400, 1333), (500, 1333), (600, 1333)],
+                    multiscale_mode="value",
+                    keep_ratio=True,
+                ),
+                dict(
+                    type="RandomCrop",
+                    crop_type="absolute_range",
+                    crop_size=(384, 600),
+                    allow_negative_crop=True,
+                ),
+                dict(
+                    type="Resize",
+                    img_scale=[
+                        (480, 1333),
+                        (512, 1333),
+                        (544, 1333),
+                        (576, 1333),
+                        (608, 1333),
+                        (640, 1333),
+                        (672, 1333),
+                        (704, 1333),
+                        (736, 1333),
+                        (768, 1333),
+                        (800, 1333),
+                    ],
+                    multiscale_mode="value",
+                    override=True,
+                    keep_ratio=True,
+                ),
+                dict(
+                    type="PhotoMetricDistortion",
+                    brightness_delta=32,
+                    contrast_range=(0.5, 1.5),
+                    saturation_range=(0.5, 1.5),
+                    hue_delta=18,
+                ),
+                dict(
+                    type="MinIoURandomCrop",
+                    min_ious=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+                    min_crop_size=0.3,
+                ),
+                dict(
+                    type="CutOut",
+                    n_holes=(5, 10),
+                    cutout_shape=[
+                        (4, 4),
+                        (4, 8),
+                        (8, 4),
+                        (8, 8),
+                        (16, 32),
+                        (32, 16),
+                        (32, 32),
+                        (32, 48),
+                        (48, 32),
+                        (48, 48),
+                    ],
+                ),
+            ],
+        ],
+    ),
+    dict(type="RandomFlip", flip_ratio=0.5),
+    dict(type="Normalize", **img_norm_cfg),
+    dict(type="Pad", size_divisor=32),
+    dict(type="DefaultFormatBundle"),
+    dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
+]
+
+test_pipeline = [
+    dict(type="LoadImageFromFile"),
+    dict(
+        type="MultiScaleFlipAug",
+        img_scale=(1333, 800),
+        flip=False,
+        transforms=[
+            dict(type="Resize", keep_ratio=True),
+            dict(type="RandomFlip"),
+            dict(type="Normalize", **img_norm_cfg),
+            dict(type="Pad", size_divisor=32),
+            dict(type="DefaultFormatBundle"),
+            dict(type="Collect", keys=["img"]),
+        ],
+    ),
+]
+
+train_dataset = dict(
+    type=dataset_type,
+    ann_file="/workspace/annotations_train.json",
+    img_prefix="/workspace/images",
+    classes=classes,
+    pipeline=train_pipeline,
+    filter_empty_gt=False,
+)
+
+data = dict(
+    samples_per_gpu=2,
+    workers_per_gpu=2,
+    persistent_workers=True,
+    train=train_dataset,
+    val=dict(
+        type=dataset_type,
+        ann_file="/workspace/20220115_having_annotations_valid.json",
+        img_prefix="/workspace/images",
+        classes=classes,
+        pipeline=test_pipeline,
+    ),
+    test=dict(
+        type=dataset_type,
+        ann_file="/workspace/20220115_having_annotations_valid.json",
+        img_prefix="/workspace/images",
+        classes=classes,
+        pipeline=test_pipeline,
+    ),
+)
+
 optimizer = dict(
     _delete_=True,
     type="AdamW",
@@ -109,5 +260,25 @@ optimizer = dict(
         }
     ),
 )
-lr_config = dict(warmup_iters=500, step=[8, 11])
+lr_config = dict(
+    policy="CosineAnnealing",
+    by_epoch=False,
+    warmup="linear",
+    warmup_iters=1000,
+    warmup_ratio=1 / 10,
+    min_lr=1e-07,
+)
+
+evaluation = dict(interval=2)
+
+seed = 5757
+
+fp16 = dict(loss_scale=dict(init_scale=512.0))
+
+log_config = dict(
+    interval=100,
+    hooks=[dict(type="TextLoggerHook"), dict(type="TensorboardLoggerHook")],
+)
+
+
 runner = dict(max_epochs=14)
