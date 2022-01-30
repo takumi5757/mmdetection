@@ -121,9 +121,9 @@ optimizer = dict(
 )
 optimizer_config = dict(grad_clip=None)
 
-max_epochs = 150
+max_epochs = 80
 num_last_epochs = 15
-resume_from = None
+resume_from = "/workspace/mmdetection/work_dirs/TFGBR_yolox_s/epoch_60.pth"
 interval = 10
 
 # learning policy
