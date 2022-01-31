@@ -261,6 +261,7 @@ optimizer = dict(
     ),
 )
 lr_config = dict(
+    _delete_=True,
     policy="CosineAnnealing",
     by_epoch=False,
     warmup="linear",
